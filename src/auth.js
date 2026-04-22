@@ -58,6 +58,7 @@ function getNewToken(oAuth2Client) {
     const authUrl = oAuth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: SCOPES,
+      prompt: 'select_account consent',
     });
 
     console.log('以下のURLをブラウザで開いて認証してください:\n');
