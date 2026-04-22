@@ -591,18 +591,18 @@ async function submitInvoiceFromEstimate() {
 }
 
 // ============================================================
-// Settings (Anthropic & GitHub)
+// Settings (OpenAI & GitHub)
 // ============================================================
 function getSettings() {
   return {
-    anthropicKey: localStorage.getItem('anthropic_key') || '',
+    openaiKey: localStorage.getItem('openai_key') || '',
     githubToken: localStorage.getItem('github_token') || '',
   };
 }
 
 function openSettings() {
   const s = getSettings();
-  document.getElementById('setting-anthropicKey').value = s.anthropicKey;
+  document.getElementById('setting-openaiKey').value = s.openaiKey;
   document.getElementById('setting-githubToken').value = s.githubToken;
   document.getElementById('settingsModal').classList.add('show');
 }
@@ -612,20 +612,20 @@ function closeSettings() {
 }
 
 function saveSettings() {
-  const k = document.getElementById('setting-anthropicKey').value.trim();
+  const k = document.getElementById('setting-openaiKey').value.trim();
   const t = document.getElementById('setting-githubToken').value.trim();
-  localStorage.setItem('anthropic_key', k);
+  localStorage.setItem('openai_key', k);
   localStorage.setItem('github_token', t);
   closeSettings();
 }
 
 // ============================================================
-// AI Fill (Claude API)
+// AI Fill (OpenAI API)
 // ============================================================
 async function aiFill(prefix) {
-  const key = getSettings().anthropicKey;
+  const key = getSettings().openaiKey;
   if (!key) {
-    alert('Anthropic APIキーを設定してください（右上の⚙設定）');
+    alert('OpenAI APIキーを設定してください（右上の⚙設定）');
     openSettings();
     return;
   }
@@ -652,32 +652,32 @@ async function aiFill(prefix) {
 ルール:
 - 金額表現「30万」「3.5万」等は数値に変換（300000, 35000）
 - 不明なフィールドは省略
-- 出力は **JSONのみ**。説明文や\`\`\`等のコードブロック記号は禁止。`;
+- 出力は **JSONオブジェクトのみ**。`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
+        'Authorization': `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: input }],
+        model: 'gpt-4o-mini',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: input },
+        ],
       }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Claude API エラー: ${res.status} ${errText}`);
+      throw new Error(`OpenAI API エラー: ${res.status} ${errText}`);
     }
 
     const data = await res.json();
-    const text = data.content[0].text.trim();
+    const text = data.choices[0].message.content.trim();
     // JSON抽出（コードブロックが入っても除去）
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('JSONを抽出できませんでした: ' + text);
