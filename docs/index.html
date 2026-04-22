@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>請求書・見積書作成ツール</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; background: #f5f5f5; color: #333; }
+    .container { max-width: 720px; margin: 0 auto; padding: 20px; }
+    h1 { text-align: center; margin: 20px 0; font-size: 1.5em; }
+    .auth-section { text-align: center; margin: 20px 0; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .auth-section p { margin: 8px 0; font-size: 0.9em; color: #666; }
+    .config-toggle { font-size: 0.85em; color: #1a73e8; cursor: pointer; text-decoration: underline; margin-top: 8px; display: inline-block; }
+    .config-panel { display: none; margin-top: 12px; text-align: left; }
+    .config-panel.open { display: block; }
+    .config-panel label { display: block; font-size: 0.85em; margin: 8px 0 4px; color: #555; }
+    .config-panel input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; }
+    .config-panel .save-btn { margin-top: 8px; }
+
+    .tabs { display: flex; gap: 4px; margin: 20px 0 0; }
+    .tab { padding: 10px 20px; background: #e0e0e0; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 0.95em; }
+    .tab.active { background: #fff; font-weight: bold; }
+    .tab-content { display: none; background: #fff; padding: 24px; border-radius: 0 8px 8px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .tab-content.active { display: block; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 0.9em; }
+    .form-group input, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.95em; }
+    .form-group textarea { height: 60px; resize: vertical; }
+    .form-group .hint { font-size: 0.8em; color: #888; margin-top: 2px; }
+
+    .items-section { margin: 16px 0; }
+    .items-section h3 { font-size: 0.95em; margin-bottom: 8px; }
+    .item-row { display: grid; grid-template-columns: 1fr 80px 60px 100px 40px; gap: 6px; margin-bottom: 6px; align-items: center; }
+    .item-row input { padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; }
+    .item-row button { background: #e74c3c; color: #fff; border: none; border-radius: 4px; cursor: pointer; padding: 6px; font-size: 0.9em; }
+    .item-header { display: grid; grid-template-columns: 1fr 80px 60px 100px 40px; gap: 6px; margin-bottom: 4px; font-size: 0.8em; color: #666; font-weight: bold; }
+    .add-item-btn { background: none; border: 1px dashed #aaa; border-radius: 4px; padding: 8px; width: 100%; cursor: pointer; color: #666; font-size: 0.9em; margin-top: 4px; }
+    .add-item-btn:hover { border-color: #1a73e8; color: #1a73e8; }
+
+    .btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: bold; }
+    .btn-primary { background: #1a73e8; color: #fff; }
+    .btn-primary:hover { background: #1557b0; }
+    .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+    .btn-google { background: #fff; color: #333; border: 1px solid #ddd; display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 0.95em; }
+    .btn-google:hover { background: #f8f8f8; }
+    .btn-signout { background: none; border: 1px solid #ddd; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 0.85em; color: #666; }
+
+    .result { margin-top: 16px; padding: 16px; background: #e8f5e9; border-radius: 6px; display: none; }
+    .result a { color: #1a73e8; word-break: break-all; }
+    .result.error { background: #fce4ec; }
+
+    .loading { display: none; margin-top: 16px; text-align: center; color: #666; }
+    .loading.show { display: block; }
+
+    .user-info { font-size: 0.9em; color: #555; margin: 8px 0; }
+
+    @media (max-width: 600px) {
+      .item-row { grid-template-columns: 1fr; }
+      .item-header { display: none; }
+      .item-row input::placeholder { font-size: 0.85em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>請求書・見積書作成ツール</h1>
+
+    <!-- Auth Section -->
+    <div class="auth-section" id="authSection">
+      <div id="preAuth">
+        <button class="btn-google" id="signInBtn" style="display:none;" onclick="handleSignIn()">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#34A853" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#FBBC05" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Googleでログイン
+        </button>
+        <p>Google Sheets / Drive APIを使用します</p>
+        <span class="config-toggle" onclick="toggleConfig()">API設定</span>
+        <div class="config-panel" id="configPanel">
+          <label>OAuth Client ID</label>
+          <input type="text" id="clientIdInput" placeholder="xxxx.apps.googleusercontent.com">
+          <label>API Key (任意)</label>
+          <input type="text" id="apiKeyInput" placeholder="AIza...">
+          <button class="btn btn-primary save-btn" onclick="saveConfig()" style="margin-top:12px; padding:8px 16px; font-size:0.9em;">保存してリロード</button>
+        </div>
+      </div>
+      <div id="postAuth" style="display:none;">
+        <p class="user-info">ログイン中: <span id="userName"></span></p>
+        <button class="btn-signout" onclick="handleSignOut()">ログアウト</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div id="mainApp" style="display:none;">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('estimate')">見積書</button>
+        <button class="tab" onclick="switchTab('invoice')">請求書</button>
+        <button class="tab" onclick="switchTab('fromEstimate')">見積書→請求書</button>
+      </div>
+
+      <!-- Estimate Tab -->
+      <div class="tab-content active" id="tab-estimate">
+        <div class="form-group">
+          <label>宛先（会社名）</label>
+          <input type="text" id="est-clientName" placeholder="株式会社〇〇">
+        </div>
+        <div class="form-group">
+          <label>件名</label>
+          <input type="text" id="est-subject" placeholder="システム開発">
+        </div>
+        <div class="form-group">
+          <label>見積番号</label>
+          <input type="text" id="est-no" placeholder="自動生成（空欄可）">
+        </div>
+        <div class="form-group">
+          <label>見積日</label>
+          <input type="date" id="est-date">
+        </div>
+        <div class="form-group">
+          <label>納期</label>
+          <input type="text" id="est-deadline" placeholder="例: 2024/03/31">
+        </div>
+        <div class="form-group">
+          <label>支払条件</label>
+          <input type="text" id="est-paymentTerms" value="別途協議の上決定">
+        </div>
+        <div class="form-group">
+          <label>有効期限</label>
+          <input type="text" id="est-validPeriod" value="御見積後1ヶ月">
+        </div>
+        <div class="form-group">
+          <label>保存先フォルダURL</label>
+          <input type="text" id="est-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+          <div class="hint">Google DriveのフォルダURL</div>
+        </div>
+        <div class="form-group">
+          <label>備考</label>
+          <textarea id="est-remarks" placeholder="（任意）"></textarea>
+        </div>
+        <div class="items-section">
+          <h3>明細</h3>
+          <div class="item-header"><span>摘要</span><span>数量</span><span>単位</span><span>単価</span><span></span></div>
+          <div id="est-items"></div>
+          <button class="add-item-btn" onclick="addItem('est')">+ 明細行を追加</button>
+        </div>
+        <button class="btn btn-primary" id="est-submit" onclick="submitEstimate()">見積書を作成</button>
+        <div class="loading" id="est-loading">作成中...</div>
+        <div class="result" id="est-result"></div>
+      </div>
+
+      <!-- Invoice Tab -->
+      <div class="tab-content" id="tab-invoice">
+        <div class="form-group">
+          <label>宛先（会社名）</label>
+          <input type="text" id="inv-clientName" placeholder="株式会社〇〇">
+        </div>
+        <div class="form-group">
+          <label>件名</label>
+          <input type="text" id="inv-subject" placeholder="システム開発">
+        </div>
+        <div class="form-group">
+          <label>請求番号</label>
+          <input type="text" id="inv-no" placeholder="自動生成（空欄可）">
+        </div>
+        <div class="form-group">
+          <label>請求日</label>
+          <input type="date" id="inv-date">
+        </div>
+        <div class="form-group">
+          <label>納品日</label>
+          <input type="text" id="inv-deliveryDate" placeholder="例: 2024/03/15">
+        </div>
+        <div class="form-group">
+          <label>お支払期限</label>
+          <input type="text" id="inv-paymentDeadline" placeholder="例: 2024/04/30">
+        </div>
+        <div class="form-group">
+          <label>見積書番号（任意）</label>
+          <input type="text" id="inv-estimateNo" placeholder="EST202403001">
+        </div>
+        <div class="form-group">
+          <label>保存先フォルダURL</label>
+          <input type="text" id="inv-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+        </div>
+        <div class="items-section">
+          <h3>明細</h3>
+          <div class="item-header"><span>摘要</span><span>数量</span><span>単位</span><span>単価</span><span></span></div>
+          <div id="inv-items"></div>
+          <button class="add-item-btn" onclick="addItem('inv')">+ 明細行を追加</button>
+        </div>
+        <button class="btn btn-primary" id="inv-submit" onclick="submitInvoice()">請求書を作成</button>
+        <div class="loading" id="inv-loading">作成中...</div>
+        <div class="result" id="inv-result"></div>
+      </div>
+
+      <!-- Invoice from Estimate Tab -->
+      <div class="tab-content" id="tab-fromEstimate">
+        <div class="form-group">
+          <label>見積書のスプレッドシートURL</label>
+          <input type="text" id="fe-estimateUrl" placeholder="https://docs.google.com/spreadsheets/d/xxxxx/edit">
+          <div class="hint">見積書のURLまたはスプレッドシートIDを入力</div>
+        </div>
+        <div class="form-group">
+          <label>保存先フォルダURL</label>
+          <input type="text" id="fe-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+        </div>
+        <div class="form-group">
+          <label>納品日（任意）</label>
+          <input type="text" id="fe-deliveryDate" placeholder="例: 2024/03/15">
+        </div>
+        <div class="form-group">
+          <label>お支払期限（任意）</label>
+          <input type="text" id="fe-paymentDeadline" placeholder="例: 2024/04/30">
+        </div>
+        <div class="form-group">
+          <label>請求番号（任意）</label>
+          <input type="text" id="fe-no" placeholder="自動生成（空欄可）">
+        </div>
+        <button class="btn btn-primary" id="fe-submit" onclick="submitInvoiceFromEstimate()">請求書を作成</button>
+        <div class="loading" id="fe-loading">作成中...</div>
+        <div class="result" id="fe-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+  <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+</body>
+</html>
