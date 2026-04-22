@@ -120,7 +120,7 @@ function handleSignOut() {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  const tabs = { estimate: 0, invoice: 1, fromEstimate: 2 };
+  const tabs = { estimate: 0, invoice: 1, fromEstimate: 2, github: 3 };
   document.querySelectorAll('.tab')[tabs[name]].classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
 }
@@ -592,5 +592,359 @@ async function submitInvoiceFromEstimate() {
   } finally {
     document.getElementById('fe-submit').disabled = false;
     setLoading('fe-loading', false);
+  }
+}
+
+// ============================================================
+// Settings (Anthropic & GitHub)
+// ============================================================
+function getSettings() {
+  return {
+    anthropicKey: localStorage.getItem('anthropic_key') || '',
+    githubToken: localStorage.getItem('github_token') || '',
+  };
+}
+
+function openSettings() {
+  const s = getSettings();
+  document.getElementById('setting-anthropicKey').value = s.anthropicKey;
+  document.getElementById('setting-githubToken').value = s.githubToken;
+  document.getElementById('settingsModal').classList.add('show');
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('show');
+}
+
+function saveSettings() {
+  const k = document.getElementById('setting-anthropicKey').value.trim();
+  const t = document.getElementById('setting-githubToken').value.trim();
+  localStorage.setItem('anthropic_key', k);
+  localStorage.setItem('github_token', t);
+  closeSettings();
+}
+
+// ============================================================
+// AI Fill (Claude API)
+// ============================================================
+async function aiFill(prefix) {
+  const key = getSettings().anthropicKey;
+  if (!key) {
+    alert('Anthropic APIキーを設定してください（右上の⚙設定）');
+    openSettings();
+    return;
+  }
+  const input = document.getElementById(prefix + '-aiInput').value.trim();
+  if (!input) { alert('内容を入力してください'); return; }
+
+  const statusEl = document.getElementById(prefix + '-aiStatus');
+  statusEl.textContent = '解析中...';
+
+  const isInvoice = prefix === 'inv';
+  const docType = isInvoice ? '請求書' : '見積書';
+  const extraFields = isInvoice
+    ? '"deliveryDate" (納品日 YYYY/MM/DD), "paymentDeadline" (お支払期限 YYYY/MM/DD), "estimateNo" (関連する見積書番号)'
+    : '"deadline" (納期 自由文字列), "paymentTerms" (支払条件), "validPeriod" (有効期限), "remarks" (備考)';
+
+  const systemPrompt = `あなたは${docType}の入力を補助するAIです。ユーザーの自然言語による依頼から、JSONを抽出して返してください。
+
+抽出するフィールド:
+- "clientName": 宛先の会社名（「御中」「株式会社」等は含めるが、「様」「殿」は除く）
+- "subject": 件名
+- "items": 明細の配列。各要素は {"description": 摘要, "quantity": 数量(数値), "unit": 単位(デフォルト"式"), "unitPrice": 単価(円・数値)}
+- ${extraFields}
+
+ルール:
+- 金額表現「30万」「3.5万」等は数値に変換（300000, 35000）
+- 不明なフィールドは省略
+- 出力は **JSONのみ**。説明文や\`\`\`等のコードブロック記号は禁止。`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: input }],
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Claude API エラー: ${res.status} ${errText}`);
+    }
+
+    const data = await res.json();
+    const text = data.content[0].text.trim();
+    // JSON抽出（コードブロックが入っても除去）
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('JSONを抽出できませんでした: ' + text);
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    applyAiResult(prefix, parsed);
+    statusEl.textContent = '✓ 反映しました';
+    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'エラー: ' + err.message;
+  }
+}
+
+function applyAiResult(prefix, data) {
+  if (data.clientName) document.getElementById(prefix + '-clientName').value = data.clientName;
+  if (data.subject) document.getElementById(prefix + '-subject').value = data.subject;
+
+  if (prefix === 'est') {
+    if (data.deadline) document.getElementById('est-deadline').value = data.deadline;
+    if (data.paymentTerms) document.getElementById('est-paymentTerms').value = data.paymentTerms;
+    if (data.validPeriod) document.getElementById('est-validPeriod').value = data.validPeriod;
+    if (data.remarks) document.getElementById('est-remarks').value = data.remarks;
+  } else if (prefix === 'inv') {
+    if (data.deliveryDate) document.getElementById('inv-deliveryDate').value = data.deliveryDate;
+    if (data.paymentDeadline) document.getElementById('inv-paymentDeadline').value = data.paymentDeadline;
+    if (data.estimateNo) document.getElementById('inv-estimateNo').value = data.estimateNo;
+  }
+
+  if (Array.isArray(data.items)) {
+    const container = document.getElementById(prefix + '-items');
+    container.innerHTML = '';
+    data.items.forEach(item => {
+      addItem(prefix);
+      const last = container.lastElementChild;
+      const inputs = last.querySelectorAll('input');
+      inputs[0].value = item.description || '';
+      inputs[1].value = item.quantity ?? 1;
+      inputs[2].value = item.unit || '式';
+      inputs[3].value = item.unitPrice ?? 0;
+    });
+    if (data.items.length === 0) addItem(prefix);
+  }
+}
+
+// ============================================================
+// GitHub Integration
+// ============================================================
+let selectedRepo = null;
+let cachedWorkItems = [];
+
+async function ghFetch(path, params) {
+  const token = getSettings().githubToken;
+  if (!token) throw new Error('GitHub Personal Access Tokenを設定してください');
+  const url = new URL('https://api.github.com' + path);
+  if (params) Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, v));
+  const res = await fetch(url.toString(), {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub API エラー: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+async function loadGitHubRepos() {
+  const btn = document.getElementById('gh-loadReposBtn');
+  btn.disabled = true;
+  btn.textContent = '読み込み中...';
+  try {
+    const repos = await ghFetch('/user/repos', { per_page: 100, sort: 'updated', affiliation: 'owner,collaborator,organization_member' });
+    const list = document.getElementById('gh-repoList');
+    list.innerHTML = '';
+    repos.forEach(r => {
+      const div = document.createElement('div');
+      div.className = 'gh-repo-item';
+      div.innerHTML = `<div>${r.full_name}${r.private ? ' 🔒' : ''}</div><div class="meta">最終更新: ${r.updated_at.split('T')[0]}</div>`;
+      div.onclick = () => selectRepo(r, div);
+      list.appendChild(div);
+    });
+    list.style.display = 'block';
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'リポジトリ一覧を取得';
+  }
+}
+
+function selectRepo(repo, el) {
+  document.querySelectorAll('.gh-repo-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedRepo = repo;
+  document.getElementById('gh-selectedRepo').value = repo.full_name;
+  document.getElementById('gh-config').style.display = 'block';
+}
+
+async function fetchGitHubCommits() {
+  if (!selectedRepo) { alert('リポジトリを選択してください'); return; }
+
+  const branch = document.getElementById('gh-branch').value.trim();
+  const since = document.getElementById('gh-since').value;
+  const until = document.getElementById('gh-until').value;
+  const author = document.getElementById('gh-author').value.trim();
+
+  setLoading('gh-fetchLoading', true);
+  try {
+    const params = { per_page: 100 };
+    if (branch) params.sha = branch;
+    if (since) params.since = since + 'T00:00:00Z';
+    if (until) params.until = until + 'T23:59:59Z';
+    if (author) params.author = author;
+
+    const allCommits = [];
+    let page = 1;
+    while (page <= 5) {
+      params.page = page;
+      const commits = await ghFetch(`/repos/${selectedRepo.full_name}/commits`, params);
+      if (commits.length === 0) break;
+      allCommits.push(...commits);
+      if (commits.length < 100) break;
+      page++;
+    }
+
+    if (allCommits.length === 0) {
+      alert('該当するコミットが見つかりませんでした');
+      return;
+    }
+
+    const commits = allCommits.map(c => ({
+      hash: c.sha,
+      date: c.commit.author.date.split('T')[0],
+      message: c.commit.message.split('\n')[0],
+    }));
+
+    cachedWorkItems = groupCommitsToWorkItems(commits);
+    renderCommitsPreview(cachedWorkItems, commits.length);
+    document.getElementById('gh-toEstimate').style.display = 'block';
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    setLoading('gh-fetchLoading', false);
+  }
+}
+
+function groupCommitsToWorkItems(commits) {
+  const filtered = commits.filter(c => {
+    const msg = c.message.toLowerCase();
+    return !msg.startsWith('merge') && !msg.startsWith('auto-') && msg.length > 0;
+  });
+  const groups = new Map();
+  for (const commit of filtered) {
+    let description = commit.message;
+    const conventionalMatch = description.match(/^(?:feat|fix|refactor|chore|docs|style|test|perf|ci|build)(?:\(.+?\))?:\s*(.+)/i);
+    if (conventionalMatch) description = conventionalMatch[1];
+    description = description.replace(/^\[?[A-Z]+-\d+\]?\s*/, '');
+    const key = description.substring(0, 50).toLowerCase().trim();
+    if (groups.has(key)) {
+      groups.get(key).commits++;
+    } else {
+      groups.set(key, { description, commits: 1 });
+    }
+  }
+  return Array.from(groups.values());
+}
+
+function renderCommitsPreview(workItems, totalCommits) {
+  const el = document.getElementById('gh-commitsPreview');
+  el.style.display = 'block';
+  el.innerHTML = `<div style="margin-bottom:6px;color:#555;">合計 ${totalCommits} コミット → ${workItems.length} 件の作業項目</div>` +
+    workItems.map((w, i) => `<div class="work-item">${i + 1}. ${escapeHtml(w.description)} <span style="color:#999;">(${w.commits} commits)</span></div>`).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function submitGitHubEstimate() {
+  if (cachedWorkItems.length === 0) { alert('先にコミットを取得してください'); return; }
+  const clientName = document.getElementById('gh-clientName').value.trim();
+  const subject = document.getElementById('gh-subject').value.trim();
+  const folderUrl = document.getElementById('gh-folderUrl').value.trim();
+  const unitPrice = parseFloat(document.getElementById('gh-unitPrice').value) || 24000;
+  if (!clientName || !subject) { alert('宛先と件名は必須です'); return; }
+  if (!folderUrl) { alert('保存先フォルダURLは必須です'); return; }
+
+  const items = cachedWorkItems.map(w => ({
+    description: w.description,
+    quantity: 1,
+    unit: '式',
+    unitPrice,
+  }));
+
+  const folderId = parseFolderId(folderUrl);
+  const no = generateEstimateNo();
+  const date = formatDate(new Date());
+
+  document.getElementById('gh-submit').disabled = true;
+  setLoading('gh-loading', true);
+
+  try {
+    const title = `見積書_${clientName}_${no}`;
+    const { spreadsheetId, spreadsheetUrl } = await copyTemplate(TEMPLATES.estimate, title, folderId);
+
+    const cfg = ESTIMATE_CELLS;
+    const cols = cfg.itemColumns;
+    const startRow = cfg.itemsStartRow;
+    const templateCount = cfg.templateItemCount;
+
+    const sheetId = await getFirstSheetId(spreadsheetId);
+    if (items.length > templateCount) {
+      await insertRows(spreadsheetId, sheetId, startRow - 1, items.length - templateCount);
+    } else if (items.length < templateCount) {
+      await deleteRows(spreadsheetId, sheetId, startRow - 1, templateCount - items.length);
+    }
+
+    const total = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    const totalRow = startRow + items.length;
+
+    await clearRanges(spreadsheetId, [
+      `${cols.number}${startRow}:${cols.amount}${startRow + items.length - 1}`,
+    ]);
+
+    const itemData = items.map((item, i) => {
+      const row = startRow + i;
+      return {
+        range: `${cols.number}${row}:${cols.amount}${row}`,
+        values: [[i + 1, item.description, '', '', item.quantity, item.unit, item.unitPrice, item.quantity * item.unitPrice]],
+      };
+    });
+
+    const updateData = [
+      { range: cfg.clientName, values: [[`${clientName} 御中`]] },
+      { range: cfg.no, values: [[`No: ${no}`]] },
+      { range: cfg.date, values: [[`見積日: ${date}`]] },
+      { range: cfg.subject, values: [[subject]] },
+      { range: cfg.deadline, values: [['']] },
+      { range: cfg.paymentTerms, values: [['別途協議の上決定']] },
+      { range: cfg.validPeriod, values: [['御見積後1ヶ月']] },
+      { range: cfg.totalAmount, values: [[`${total.toLocaleString()} 円 (税込)`]] },
+      { range: `${cols.amount}${totalRow}`, values: [[total]] },
+      ...itemData,
+    ];
+
+    await batchUpdateValues(spreadsheetId, updateData);
+
+    const today = formatDate(new Date());
+    await appendRow(MASTER_SHEET.spreadsheetId, MASTER_SHEET.estimateSheet, [
+      today, today, no, subject, clientName, '', spreadsheetUrl,
+    ]);
+
+    showResult('gh-result', `見積書を作成しました: <a href="${spreadsheetUrl}" target="_blank">${spreadsheetUrl}</a>`);
+  } catch (err) {
+    console.error(err);
+    showResult('gh-result', `エラー: ${err.result?.error?.message || err.message || err}`, true);
+  } finally {
+    document.getElementById('gh-submit').disabled = false;
+    setLoading('gh-loading', false);
   }
 }

@@ -7,28 +7,37 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; background: #f5f5f5; color: #333; }
-    .container { max-width: 720px; margin: 0 auto; padding: 20px; }
+    .container { max-width: 760px; margin: 0 auto; padding: 20px; }
     h1 { text-align: center; margin: 20px 0; font-size: 1.5em; }
     .auth-section { text-align: center; margin: 20px 0; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .auth-section p { margin: 8px 0; font-size: 0.9em; color: #666; }
-    .config-toggle { font-size: 0.85em; color: #1a73e8; cursor: pointer; text-decoration: underline; margin-top: 8px; display: inline-block; }
-    .config-panel { display: none; margin-top: 12px; text-align: left; }
-    .config-panel.open { display: block; }
-    .config-panel label { display: block; font-size: 0.85em; margin: 8px 0 4px; color: #555; }
-    .config-panel input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; }
-    .config-panel .save-btn { margin-top: 8px; }
 
-    .tabs { display: flex; gap: 4px; margin: 20px 0 0; }
-    .tab { padding: 10px 20px; background: #e0e0e0; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 0.95em; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; padding: 0 4px; }
+    .user-info { font-size: 0.9em; color: #555; }
+    .top-bar-actions { display: flex; gap: 8px; }
+    .icon-btn { background: #fff; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85em; color: #555; }
+    .icon-btn:hover { background: #f8f8f8; }
+
+    .tabs { display: flex; gap: 4px; margin: 8px 0 0; flex-wrap: wrap; }
+    .tab { padding: 10px 16px; background: #e0e0e0; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 0.9em; }
     .tab.active { background: #fff; font-weight: bold; }
     .tab-content { display: none; background: #fff; padding: 24px; border-radius: 0 8px 8px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .tab-content.active { display: block; }
 
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 0.9em; }
-    .form-group input, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.95em; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.95em; font-family: inherit; }
     .form-group textarea { height: 60px; resize: vertical; }
     .form-group .hint { font-size: 0.8em; color: #888; margin-top: 2px; }
+
+    .ai-box { background: linear-gradient(135deg, #f0f4ff 0%, #faf0ff 100%); border: 1px solid #c5cef0; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    .ai-box-title { font-size: 0.9em; font-weight: bold; color: #5a4ed1; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .ai-box textarea { width: 100%; min-height: 70px; padding: 8px; border: 1px solid #d0d6ed; border-radius: 4px; font-size: 0.9em; font-family: inherit; }
+    .ai-box-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+    .ai-btn { background: #5a4ed1; color: #fff; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; font-size: 0.85em; font-weight: bold; }
+    .ai-btn:hover { background: #4a3eb8; }
+    .ai-btn:disabled { background: #aaa; cursor: not-allowed; }
+    .ai-status { font-size: 0.8em; color: #777; }
 
     .items-section { margin: 16px 0; }
     .items-section h3 { font-size: 0.95em; margin-bottom: 8px; }
@@ -43,9 +52,10 @@
     .btn-primary { background: #1a73e8; color: #fff; }
     .btn-primary:hover { background: #1557b0; }
     .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+    .btn-secondary { background: #fff; color: #333; border: 1px solid #ddd; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
+    .btn-secondary:hover { background: #f8f8f8; }
     .btn-google { background: #fff; color: #333; border: 1px solid #ddd; display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 0.95em; }
     .btn-google:hover { background: #f8f8f8; }
-    .btn-signout { background: none; border: 1px solid #ddd; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 0.85em; color: #666; }
 
     .result { margin-top: 16px; padding: 16px; background: #e8f5e9; border-radius: 6px; display: none; }
     .result a { color: #1a73e8; word-break: break-all; }
@@ -54,7 +64,21 @@
     .loading { display: none; margin-top: 16px; text-align: center; color: #666; }
     .loading.show { display: block; }
 
-    .user-info { font-size: 0.9em; color: #555; margin: 8px 0; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #fff; border-radius: 8px; padding: 24px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; }
+    .modal h2 { font-size: 1.1em; margin-bottom: 16px; }
+    .modal-close { float: right; background: none; border: none; font-size: 1.5em; cursor: pointer; color: #888; }
+
+    .gh-repos { max-height: 240px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
+    .gh-repo-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 0.9em; }
+    .gh-repo-item:hover { background: #f0f7ff; }
+    .gh-repo-item.selected { background: #e3f2fd; font-weight: bold; }
+    .gh-repo-item .meta { font-size: 0.75em; color: #888; }
+
+    .commits-preview { max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 8px; margin-top: 8px; font-size: 0.85em; background: #fafafa; }
+    .commits-preview .work-item { padding: 4px 0; border-bottom: 1px solid #eee; }
+    .commits-preview .work-item:last-child { border-bottom: none; }
 
     @media (max-width: 600px) {
       .item-row { grid-template-columns: 1fr; }
@@ -76,22 +100,37 @@
         </button>
         <p>Google Sheets / Drive APIを使用します</p>
       </div>
-      <div id="postAuth" style="display:none;">
-        <p class="user-info">ログイン中: <span id="userName"></span></p>
-        <button class="btn-signout" onclick="handleSignOut()">ログアウト</button>
-      </div>
     </div>
 
-    <!-- Tabs -->
     <div id="mainApp" style="display:none;">
+      <!-- Top bar -->
+      <div class="top-bar">
+        <div class="user-info">ログイン中</div>
+        <div class="top-bar-actions">
+          <button class="icon-btn" onclick="openSettings()">⚙ 設定</button>
+          <button class="icon-btn" onclick="handleSignOut()">ログアウト</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
       <div class="tabs">
         <button class="tab active" onclick="switchTab('estimate')">見積書</button>
         <button class="tab" onclick="switchTab('invoice')">請求書</button>
         <button class="tab" onclick="switchTab('fromEstimate')">見積書→請求書</button>
+        <button class="tab" onclick="switchTab('github')">GitHubから生成</button>
       </div>
 
       <!-- Estimate Tab -->
       <div class="tab-content active" id="tab-estimate">
+        <div class="ai-box">
+          <div class="ai-box-title">✨ AIで一括入力</div>
+          <textarea id="est-aiInput" placeholder="例: 株式会社テスト宛の見積書、件名はWebサイトリニューアル、フロント実装30万、バックエンド20万、納期は来月末"></textarea>
+          <div class="ai-box-actions">
+            <button class="ai-btn" onclick="aiFill('est')">AIで解析してフォームに反映</button>
+            <span class="ai-status" id="est-aiStatus"></span>
+          </div>
+        </div>
+
         <div class="form-group">
           <label>宛先（会社名）</label>
           <input type="text" id="est-clientName" placeholder="株式会社〇〇">
@@ -142,6 +181,15 @@
 
       <!-- Invoice Tab -->
       <div class="tab-content" id="tab-invoice">
+        <div class="ai-box">
+          <div class="ai-box-title">✨ AIで一括入力</div>
+          <textarea id="inv-aiInput" placeholder="例: 株式会社テスト宛の請求書、件名はWebサイトリニューアル、フロント実装30万、バックエンド20万、納品日は3/15、支払期限は4/30"></textarea>
+          <div class="ai-box-actions">
+            <button class="ai-btn" onclick="aiFill('inv')">AIで解析してフォームに反映</button>
+            <span class="ai-status" id="inv-aiStatus"></span>
+          </div>
+        </div>
+
         <div class="form-group">
           <label>宛先（会社名）</label>
           <input type="text" id="inv-clientName" placeholder="株式会社〇〇">
@@ -211,6 +259,91 @@
         <button class="btn btn-primary" id="fe-submit" onclick="submitInvoiceFromEstimate()">請求書を作成</button>
         <div class="loading" id="fe-loading">作成中...</div>
         <div class="result" id="fe-result"></div>
+      </div>
+
+      <!-- GitHub Tab -->
+      <div class="tab-content" id="tab-github">
+        <p style="font-size: 0.9em; color: #666; margin-bottom: 16px;">
+          GitHubのリポジトリからコミット履歴を取得し、見積書の明細として使用します。
+          GitHub Personal Access Token は <button class="icon-btn" onclick="openSettings()" style="display:inline-block;padding:2px 8px;font-size:0.85em;">設定</button> から登録してください。
+        </p>
+
+        <div class="form-group">
+          <label>リポジトリを選択</label>
+          <button class="btn-secondary" id="gh-loadReposBtn" onclick="loadGitHubRepos()">リポジトリ一覧を取得</button>
+        </div>
+
+        <div id="gh-repoList" class="gh-repos" style="display:none;"></div>
+
+        <div id="gh-config" style="display:none; margin-top: 16px;">
+          <div class="form-group">
+            <label>選択中のリポジトリ</label>
+            <input type="text" id="gh-selectedRepo" readonly>
+          </div>
+          <div class="form-group">
+            <label>ブランチ（任意）</label>
+            <input type="text" id="gh-branch" placeholder="main / master / develop など（空欄でデフォルト）">
+          </div>
+          <div class="form-group">
+            <label>開始日</label>
+            <input type="date" id="gh-since">
+          </div>
+          <div class="form-group">
+            <label>終了日</label>
+            <input type="date" id="gh-until">
+          </div>
+          <div class="form-group">
+            <label>著者（GitHubユーザー名、任意）</label>
+            <input type="text" id="gh-author" placeholder="Shimizu1111">
+          </div>
+          <div class="form-group">
+            <label>単価（円/件）</label>
+            <input type="number" id="gh-unitPrice" value="24000" min="0">
+          </div>
+          <button class="btn-secondary" onclick="fetchGitHubCommits()">コミットを取得・プレビュー</button>
+          <div class="loading" id="gh-fetchLoading">取得中...</div>
+          <div id="gh-commitsPreview" class="commits-preview" style="display:none;"></div>
+        </div>
+
+        <div id="gh-toEstimate" style="display:none; margin-top: 16px;">
+          <hr style="margin: 16px 0; border: none; border-top: 1px solid #eee;">
+          <h3 style="font-size: 0.95em; margin-bottom: 12px;">見積書の作成</h3>
+          <div class="form-group">
+            <label>宛先（会社名）</label>
+            <input type="text" id="gh-clientName" placeholder="株式会社〇〇">
+          </div>
+          <div class="form-group">
+            <label>件名</label>
+            <input type="text" id="gh-subject" placeholder="○月分開発作業">
+          </div>
+          <div class="form-group">
+            <label>保存先フォルダURL</label>
+            <input type="text" id="gh-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+          </div>
+          <button class="btn btn-primary" id="gh-submit" onclick="submitGitHubEstimate()">この内容で見積書を作成</button>
+          <div class="loading" id="gh-loading">作成中...</div>
+          <div class="result" id="gh-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+      <div class="modal">
+        <button class="modal-close" onclick="closeSettings()">×</button>
+        <h2>⚙ 設定</h2>
+        <div class="form-group">
+          <label>Anthropic APIキー（AI入力に使用）</label>
+          <input type="password" id="setting-anthropicKey" placeholder="sk-ant-...">
+          <div class="hint"><a href="https://console.anthropic.com/settings/keys" target="_blank">https://console.anthropic.com/settings/keys</a> で取得</div>
+        </div>
+        <div class="form-group">
+          <label>GitHub Personal Access Token（GitHub連携に使用）</label>
+          <input type="password" id="setting-githubToken" placeholder="ghp_...">
+          <div class="hint"><a href="https://github.com/settings/tokens" target="_blank">https://github.com/settings/tokens</a> で `repo` 権限のトークンを発行</div>
+        </div>
+        <p style="font-size: 0.8em; color: #888; margin-bottom: 12px;">※ APIキーはブラウザのlocalStorageにのみ保存され、外部には送信されません。</p>
+        <button class="btn btn-primary" onclick="saveSettings()" style="padding: 10px 20px; font-size: 0.95em;">保存</button>
       </div>
     </div>
   </div>
