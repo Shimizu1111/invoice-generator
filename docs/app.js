@@ -133,22 +133,41 @@ function switchTab(name) {
 // Companies (自社情報 / 取引先企業)
 // ============================================================
 async function loadCompanies() {
+  const statusEl = document.getElementById('companiesStatus');
+  const setStatus = (text, isError) => {
+    if (!statusEl) return;
+    statusEl.textContent = text;
+    statusEl.style.color = isError ? '#c00' : '#666';
+  };
+  setStatus('読込中...');
   try {
-    const [clientsRes, selfRes] = await Promise.all([
-      gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: COMPANIES_SHEET.spreadsheetId,
-        range: `${COMPANIES_SHEET.clientsSheet}!A1:Z1000`,
-      }),
-      gapi.client.sheets.spreadsheets.values.get({
-        spreadsheetId: COMPANIES_SHEET.spreadsheetId,
-        range: `${COMPANIES_SHEET.selfSheet}!A1:Z10`,
-      }),
-    ]);
-    cachedClients = parseCompanyRows(clientsRes.result.values);
-    cachedSelfInfo = parseCompanyRows(selfRes.result.values)[0] || null;
+    const meta = await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: COMPANIES_SHEET.spreadsheetId,
+      fields: 'sheets.properties(title)',
+    });
+    const tabNames = meta.result.sheets.map(s => s.properties.title);
+    const pickTab = (candidates) => tabNames.find(t => candidates.includes(t))
+      || tabNames.find(t => candidates.some(c => t.includes(c)));
+    const clientsTab = pickTab(['取引先企業', '取引先', 'クライアント', '顧客']);
+    const selfTab = pickTab(['自社情報', '自社']);
+    if (!clientsTab) throw new Error(`取引先タブが見つかりません。タブ一覧: [${tabNames.join(', ')}]`);
+
+    const ranges = [`${clientsTab}!A1:Z1000`];
+    if (selfTab) ranges.push(`${selfTab}!A1:Z10`);
+    const batchRes = await gapi.client.sheets.spreadsheets.values.batchGet({
+      spreadsheetId: COMPANIES_SHEET.spreadsheetId,
+      ranges,
+    });
+    const [clientsValues, selfValues] = batchRes.result.valueRanges;
+    cachedClients = parseCompanyRows(clientsValues.values);
+    cachedSelfInfo = selfValues ? (parseCompanyRows(selfValues.values)[0] || null) : null;
     populateClientDropdowns();
+    setStatus(`取引先 ${cachedClients.length} 件${selfTab ? ' / 自社情報読込済' : ''}`);
   } catch (err) {
     console.warn('会社情報の読み込みに失敗:', err);
+    const code = err.status || err.result?.error?.code || '';
+    const msg = err.result?.error?.message || err.message || String(err);
+    setStatus(`× 読込失敗 ${code ? '(' + code + ')' : ''}: ${msg}`, true);
   }
 }
 
