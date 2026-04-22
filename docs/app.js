@@ -84,11 +84,7 @@ function handleSignIn() {
     }
     showLoggedIn();
   };
-  if (!gapi.client.getToken()) {
-    tokenClient.requestAccessToken({ prompt: 'consent' });
-  } else {
-    tokenClient.requestAccessToken({ prompt: '' });
-  }
+  tokenClient.requestAccessToken({ prompt: 'select_account' });
 }
 
 function showLoggedIn() {
