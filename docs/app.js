@@ -2,12 +2,12 @@
 // Config
 // ============================================================
 const TEMPLATES = {
-  estimate: '1CJGUEnZk2nuwxXDKXO__EGlDZ5bAuY9ErFEJqxf9Q9E',
-  invoice: '1Ln2FNWsLLnTrazkgKJobwXA3Cvwpz22YmI91zj0-fxo',
+  estimate: '1k4TzjsW6N1w5kuflUJJLZbpAtztehzUXzVqXBIhGcvs',
+  invoice: '1S2DGu4FCLDZwGZX0uS-vl4hEPtU7Y4SHnBPxiEAANTc',
 };
 
 const MASTER_SHEET = {
-  spreadsheetId: '1R0sZea4OrLlplY25uxqgRK3mGHGDgHPtd-fGvqDG1D4',
+  spreadsheetId: '1ufhqWGyI0to5fR5y50qHILaCl46ljuuabtFbQ6tWZz0',
   estimateSheet: '見積書',
   invoiceSheet: '請求書',
 };
