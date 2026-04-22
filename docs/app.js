@@ -596,6 +596,7 @@ async function submitInvoiceFromEstimate() {
 function getSettings() {
   return {
     openaiKey: localStorage.getItem('openai_key') || '',
+    openaiModel: localStorage.getItem('openai_model') || 'gpt-5-nano',
     githubToken: localStorage.getItem('github_token') || '',
   };
 }
@@ -603,6 +604,7 @@ function getSettings() {
 function openSettings() {
   const s = getSettings();
   document.getElementById('setting-openaiKey').value = s.openaiKey;
+  document.getElementById('setting-openaiModel').value = s.openaiModel;
   document.getElementById('setting-githubToken').value = s.githubToken;
   document.getElementById('settingsModal').classList.add('show');
 }
@@ -613,8 +615,10 @@ function closeSettings() {
 
 function saveSettings() {
   const k = document.getElementById('setting-openaiKey').value.trim();
+  const m = document.getElementById('setting-openaiModel').value;
   const t = document.getElementById('setting-githubToken').value.trim();
   localStorage.setItem('openai_key', k);
+  localStorage.setItem('openai_model', m);
   localStorage.setItem('github_token', t);
   closeSettings();
 }
@@ -662,7 +666,7 @@ async function aiFill(prefix) {
         'Authorization': `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: getSettings().openaiModel,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },

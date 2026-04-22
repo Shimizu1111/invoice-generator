@@ -338,6 +338,15 @@
           <div class="hint"><a href="https://platform.openai.com/api-keys" target="_blank">https://platform.openai.com/api-keys</a> で取得</div>
         </div>
         <div class="form-group">
+          <label>OpenAI モデル</label>
+          <select id="setting-openaiModel">
+            <option value="gpt-5-nano">gpt-5-nano（安い・推奨）</option>
+            <option value="gpt-5-mini">gpt-5-mini（少し賢い）</option>
+            <option value="gpt-5">gpt-5（高精度・高価）</option>
+            <option value="gpt-4o-mini">gpt-4o-mini（旧モデル）</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>GitHub Personal Access Token（GitHub連携に使用）</label>
           <input type="password" id="setting-githubToken" placeholder="ghp_...">
           <div class="hint"><a href="https://github.com/settings/tokens" target="_blank">https://github.com/settings/tokens</a> で `repo` 権限のトークンを発行</div>
