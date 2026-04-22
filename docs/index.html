@@ -107,6 +107,7 @@
       <div class="top-bar">
         <div class="user-info">ログイン中</div>
         <div class="top-bar-actions">
+          <button class="icon-btn" id="reloadCompaniesBtn" onclick="reloadCompanies()">🔄 会社リスト再読込</button>
           <button class="icon-btn" onclick="openSettings()">⚙ 設定</button>
           <button class="icon-btn" onclick="handleSignOut()">ログアウト</button>
         </div>
@@ -133,6 +134,9 @@
 
         <div class="form-group">
           <label>宛先（会社名）</label>
+          <select class="client-select" onchange="onClientSelect('est', this)" style="margin-bottom:4px;">
+            <option value="">（手動入力）</option>
+          </select>
           <input type="text" id="est-clientName" placeholder="株式会社〇〇">
         </div>
         <div class="form-group">
@@ -192,6 +196,9 @@
 
         <div class="form-group">
           <label>宛先（会社名）</label>
+          <select class="client-select" onchange="onClientSelect('inv', this)" style="margin-bottom:4px;">
+            <option value="">（手動入力）</option>
+          </select>
           <input type="text" id="inv-clientName" placeholder="株式会社〇〇">
         </div>
         <div class="form-group">
@@ -310,6 +317,9 @@
           <h3 style="font-size: 0.95em; margin-bottom: 12px;">見積書の作成</h3>
           <div class="form-group">
             <label>宛先（会社名）</label>
+            <select class="client-select" onchange="onClientSelect('gh', this)" style="margin-bottom:4px;">
+              <option value="">（手動入力）</option>
+            </select>
             <input type="text" id="gh-clientName" placeholder="株式会社〇〇">
           </div>
           <div class="form-group">

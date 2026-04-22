@@ -12,6 +12,12 @@ const MASTER_SHEET = {
   invoiceSheet: '請求書',
 };
 
+const COMPANIES_SHEET = {
+  spreadsheetId: '1jcWUiz2JxHi_fzn-1h75LOGx50DAiF5uWJPvIWEVlus',
+  selfSheet: '自社情報',
+  clientsSheet: '取引先企業',
+};
+
 const ESTIMATE_CELLS = {
   clientName: 'A2', no: 'H2', date: 'H3',
   subject: 'B6', deadline: 'B7', paymentTerms: 'B8', validPeriod: 'B9',
@@ -37,6 +43,8 @@ const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googlea
 let tokenClient;
 let gapiInited = false;
 let gisInited = false;
+let cachedClients = [];
+let cachedSelfInfo = null;
 
 // ============================================================
 // Google API init
@@ -97,6 +105,7 @@ function showLoggedIn() {
   if (!invDate.value) invDate.value = today;
   if (document.getElementById('est-items').children.length === 0) addItem('est');
   if (document.getElementById('inv-items').children.length === 0) addItem('inv');
+  loadCompanies();
 }
 
 function handleSignOut() {
@@ -118,6 +127,67 @@ function switchTab(name) {
   const tabs = { estimate: 0, invoice: 1, fromEstimate: 2, github: 3 };
   document.querySelectorAll('.tab')[tabs[name]].classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ============================================================
+// Companies (自社情報 / 取引先企業)
+// ============================================================
+async function loadCompanies() {
+  try {
+    const [clientsRes, selfRes] = await Promise.all([
+      gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: COMPANIES_SHEET.spreadsheetId,
+        range: `${COMPANIES_SHEET.clientsSheet}!A1:Z1000`,
+      }),
+      gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: COMPANIES_SHEET.spreadsheetId,
+        range: `${COMPANIES_SHEET.selfSheet}!A1:Z10`,
+      }),
+    ]);
+    cachedClients = parseCompanyRows(clientsRes.result.values);
+    cachedSelfInfo = parseCompanyRows(selfRes.result.values)[0] || null;
+    populateClientDropdowns();
+  } catch (err) {
+    console.warn('会社情報の読み込みに失敗:', err);
+  }
+}
+
+function parseCompanyRows(values) {
+  if (!values || values.length < 2) return [];
+  const headers = values[0].map(h => String(h).trim());
+  return values.slice(1)
+    .filter(row => row && row.some(cell => String(cell || '').trim()))
+    .map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = (row[i] || '').toString().trim(); });
+      return obj;
+    });
+}
+
+function populateClientDropdowns() {
+  document.querySelectorAll('.client-select').forEach(sel => {
+    const current = sel.value;
+    const opts = ['<option value="">（手動入力）</option>']
+      .concat(cachedClients.map((c, i) => `<option value="${i}">${escapeHtml(c['会社名'] || '')}</option>`));
+    sel.innerHTML = opts.join('');
+    sel.value = current;
+  });
+}
+
+function onClientSelect(prefix, selectEl) {
+  const idx = parseInt(selectEl.value, 10);
+  if (isNaN(idx)) return;
+  const client = cachedClients[idx];
+  if (!client) return;
+  const nameEl = document.getElementById(prefix + '-clientName');
+  if (nameEl) nameEl.value = client['会社名'] || '';
+}
+
+async function reloadCompanies() {
+  const btn = document.getElementById('reloadCompaniesBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '読み込み中...'; }
+  await loadCompanies();
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 会社リスト再読込'; }
 }
 
 // ============================================================
