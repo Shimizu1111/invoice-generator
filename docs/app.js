@@ -281,6 +281,15 @@ function parseSpreadsheetId(urlOrId) {
   return match ? match[1] : urlOrId;
 }
 
+function buildInvoiceRemarks(remarks, estimateNo) {
+  const header = estimateNo ? `見積書: ${estimateNo}` : '';
+  const body = (remarks || '').trim();
+  if (header && body) {
+    return body.startsWith('見積書:') ? body : `${header}\n\n${body}`;
+  }
+  return header || body;
+}
+
 function showResult(id, html, isError) {
   const el = document.getElementById(id);
   el.innerHTML = html;
@@ -485,6 +494,7 @@ async function submitInvoice() {
   const deliveryDate = document.getElementById('inv-deliveryDate').value.trim();
   const paymentDeadline = document.getElementById('inv-paymentDeadline').value.trim();
   const estimateNo = document.getElementById('inv-estimateNo').value.trim();
+  const remarks = document.getElementById('inv-remarks').value.trim();
   const folderId = parseFolderId(folderUrl);
 
   document.getElementById('inv-submit').disabled = true;
@@ -522,7 +532,7 @@ async function submitInvoice() {
     });
 
     const remarksRow = totalRow + 3;
-    const remarksValue = estimateNo ? `1. 見積書: ${estimateNo}` : '';
+    const remarksValue = buildInvoiceRemarks(remarks, estimateNo);
 
     const updateData = [
       { range: cfg.clientName, values: [[`${clientName} 御中`]] },
@@ -613,6 +623,9 @@ async function submitInvoiceFromEstimate() {
       return;
     }
 
+    const estRemarksRowIdx = 14 + items.length + 3;
+    const estimateRemarks = (headerData[estRemarksRowIdx] && headerData[estRemarksRowIdx][0]) || '';
+
     // Create invoice
     const no = noOverride || generateInvoiceNo();
     const date = formatDate(new Date());
@@ -657,7 +670,7 @@ async function submitInvoiceFromEstimate() {
       { range: cfg.paymentDeadline, values: [[paymentDeadline]] },
       { range: cfg.totalAmount, values: [[`${total.toLocaleString()} 円 (税込)`]] },
       { range: `${cols.amount}${totalRow}`, values: [[total]] },
-      { range: `A${remarksRow}`, values: [[`1. 見積書: ${estimateNo}`]] },
+      { range: `A${remarksRow}`, values: [[buildInvoiceRemarks(estimateRemarks, estimateNo)]] },
       ...itemData,
     ];
 
@@ -731,8 +744,48 @@ async function aiFill(prefix) {
   const isInvoice = prefix === 'inv';
   const docType = isInvoice ? '請求書' : '見積書';
   const extraFields = isInvoice
-    ? '"deliveryDate" (納品日 YYYY/MM/DD), "paymentDeadline" (お支払期限 YYYY/MM/DD), "estimateNo" (関連する見積書番号)'
+    ? '"deliveryDate" (納品日 YYYY/MM/DD), "paymentDeadline" (お支払期限 YYYY/MM/DD), "estimateNo" (関連する見積書番号), "remarks" (備考)'
     : '"deadline" (納期 自由文字列), "paymentTerms" (支払条件), "validPeriod" (有効期限), "remarks" (備考)';
+
+  const remarksTemplate = isInvoice
+    ? `請求書の備考(remarks)は以下の形式で記述する。\`\\n\`で改行を含む1つの文字列として返すこと。estimateNoがあれば先頭に必ず「見積書: EST○○○」の行を入れる。入力から読み取れないセクションは省略可。
+
+見積書: EST○○○  ← estimateNoがある場合のみ先頭に
+
+【対応内容】
+本請求には、以下の内容が含まれます。
+
+1. [作業タイトル]（[X.X]人日）
+   - 具体的な作業内容1
+   - 具体的な作業内容2
+
+2. ...
+
+【注意事項】
+1. [注意事項1]
+2. ...
+
+【工数・単価】
+- 1人日あたりの単価目安: 約○○,○○○円/人日
+- 合計工数: ○.○人日`
+    : `見積書の備考(remarks)は以下の形式で記述する。\`\\n\`で改行を含む1つの文字列として返すこと。入力から読み取れないセクションは省略可。
+
+【対応内容】
+本見積には、以下の機能開発および改善が含まれます。実装完了済みの内容を事後精算として計上しています。
+
+1. [作業タイトル]（[X.X]人日）
+   - 具体的な作業内容1
+   - 具体的な作業内容2
+
+2. ...
+
+【注意事項】
+1. [注意事項1]
+2. ...
+
+【工数・単価】
+- 1人日あたりの単価目安: 約○○,○○○円/人日
+- 合計工数: ○.○人日`;
 
   const systemPrompt = `あなたは${docType}の入力を補助するAIです。ユーザーの自然言語による依頼から、JSONを抽出して返してください。
 
@@ -742,9 +795,12 @@ async function aiFill(prefix) {
 - "items": 明細の配列。各要素は {"description": 摘要, "quantity": 数量(数値), "unit": 単位(デフォルト"式"), "unitPrice": 単価(円・数値)}
 - ${extraFields}
 
+${remarksTemplate}
+
 ルール:
 - 金額表現「30万」「3.5万」等は数値に変換（300000, 35000）
 - 不明なフィールドは省略
+- 工数・単価は明細(items)から計算して書く（合計工数 = 全itemsのquantityの合計、単価 = items[0].unitPrice など）
 - 出力は **JSONオブジェクトのみ**。`;
 
   try {
@@ -798,6 +854,7 @@ function applyAiResult(prefix, data) {
     if (data.deliveryDate) document.getElementById('inv-deliveryDate').value = data.deliveryDate;
     if (data.paymentDeadline) document.getElementById('inv-paymentDeadline').value = data.paymentDeadline;
     if (data.estimateNo) document.getElementById('inv-estimateNo').value = data.estimateNo;
+    if (data.remarks) document.getElementById('inv-remarks').value = data.remarks;
   }
 
   if (Array.isArray(data.items)) {
