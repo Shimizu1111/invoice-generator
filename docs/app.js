@@ -88,17 +88,13 @@ function handleSignIn() {
 }
 
 function showLoggedIn() {
-  document.getElementById('preAuth').style.display = 'none';
-  document.getElementById('postAuth').style.display = 'block';
+  document.getElementById('authSection').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
-  document.getElementById('userName').textContent = 'Google アカウント';
-  // Set today's date
   const today = new Date().toISOString().split('T')[0];
   const estDate = document.getElementById('est-date');
   const invDate = document.getElementById('inv-date');
   if (!estDate.value) estDate.value = today;
   if (!invDate.value) invDate.value = today;
-  // Init item rows
   if (document.getElementById('est-items').children.length === 0) addItem('est');
   if (document.getElementById('inv-items').children.length === 0) addItem('inv');
 }
@@ -109,8 +105,7 @@ function handleSignOut() {
     google.accounts.oauth2.revoke(token.access_token);
     gapi.client.setToken('');
   }
-  document.getElementById('preAuth').style.display = 'block';
-  document.getElementById('postAuth').style.display = 'none';
+  document.getElementById('authSection').style.display = 'block';
   document.getElementById('mainApp').style.display = 'none';
 }
 
