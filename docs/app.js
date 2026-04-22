@@ -28,6 +28,7 @@ const INVOICE_CELLS = {
   itemColumns: { number: 'A', description: 'B', quantity: 'E', unit: 'F', unitPrice: 'G', amount: 'H' },
 };
 
+const CLIENT_ID = '707875244824-kuhb9drhcanafjnqrs7fk9n7l3kjkssc.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 
 // ============================================================
@@ -37,81 +38,39 @@ let tokenClient;
 let gapiInited = false;
 let gisInited = false;
 
-function getConfig() {
-  return {
-    clientId: localStorage.getItem('oauth_client_id') || '',
-    apiKey: localStorage.getItem('api_key') || '',
-  };
-}
-
 // ============================================================
 // Google API init
 // ============================================================
 function gapiLoaded() {
   gapi.load('client', async () => {
-    const conf = getConfig();
-    if (!conf.clientId) return;
-    const initObj = {
+    await gapi.client.init({
       discoveryDocs: [
         'https://sheets.googleapis.com/$discovery/rest?version=v4',
         'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
       ],
-    };
-    if (conf.apiKey) initObj.apiKey = conf.apiKey;
-    await gapi.client.init(initObj);
+    });
     gapiInited = true;
     maybeEnableSignIn();
   });
 }
 
 function gisLoaded() {
-  const conf = getConfig();
-  if (!conf.clientId) return;
   tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: conf.clientId,
+    client_id: CLIENT_ID,
     scope: SCOPES,
-    callback: '', // set at sign-in time
+    callback: '',
   });
   gisInited = true;
   maybeEnableSignIn();
 }
 
 function maybeEnableSignIn() {
-  const conf = getConfig();
-  if (!conf.clientId) {
-    document.getElementById('preAuth').querySelector('p').textContent =
-      'API設定からOAuth Client IDを設定してください';
-    return;
-  }
   if (gapiInited && gisInited) {
     document.getElementById('signInBtn').style.display = 'inline-flex';
-    // Check for existing token
     if (gapi.client.getToken()) {
       showLoggedIn();
     }
   }
-}
-
-// ============================================================
-// Config panel
-// ============================================================
-function toggleConfig() {
-  const panel = document.getElementById('configPanel');
-  panel.classList.toggle('open');
-  if (panel.classList.contains('open')) {
-    const conf = getConfig();
-    document.getElementById('clientIdInput').value = conf.clientId;
-    document.getElementById('apiKeyInput').value = conf.apiKey;
-  }
-}
-
-function saveConfig() {
-  const clientId = document.getElementById('clientIdInput').value.trim();
-  const apiKey = document.getElementById('apiKeyInput').value.trim();
-  if (!clientId) { alert('OAuth Client IDは必須です'); return; }
-  localStorage.setItem('oauth_client_id', clientId);
-  localStorage.setItem('api_key', apiKey);
-  location.reload();
 }
 
 // ============================================================
