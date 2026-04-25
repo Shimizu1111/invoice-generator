@@ -10,7 +10,7 @@ const MASTER_SHEET = {
   spreadsheetId: '1ufhqWGyI0to5fR5y50qHILaCl46ljuuabtFbQ6tWZz0',
   estimateSheet: '見積書',
   invoiceSheet: '請求書',
-  contractSheet: '契約書',
+  contractSheet: '受_契約書',
 };
 
 const COMPANIES_SHEET = {
