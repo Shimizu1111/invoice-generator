@@ -288,9 +288,13 @@ function parseSpreadsheetId(urlOrId) {
   return match ? match[1] : urlOrId;
 }
 
+function stripQuotes(s) {
+  return (s || '').replace(/^["']+|["']+$/g, '').trim();
+}
+
 function buildInvoiceRemarks(remarks, estimateNo) {
   const header = estimateNo ? `見積書: ${estimateNo}` : '';
-  const body = (remarks || '').trim();
+  const body = stripQuotes(remarks);
   if (header && body) {
     return body.startsWith('見積書:') ? body : `${header}\n\n${body}`;
   }
@@ -412,6 +416,22 @@ async function autoResizeRemarksRow(spreadsheetId, sheetId, rowIndex) {
   });
 }
 
+async function mergeItemDescCells(spreadsheetId, sheetId, startRow, itemCount) {
+  const requests = [];
+  for (let i = 0; i < itemCount; i++) {
+    requests.push({
+      mergeCells: {
+        range: { sheetId, startRowIndex: startRow - 1 + i, endRowIndex: startRow + i, startColumnIndex: 1, endColumnIndex: 4 },
+        mergeType: 'MERGE_ALL',
+      },
+    });
+  }
+  await gapi.client.sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    resource: { requests },
+  });
+}
+
 async function appendRow(spreadsheetId, sheetName, rowValues) {
   await gapi.client.sheets.spreadsheets.values.append({
     spreadsheetId,
@@ -494,6 +514,7 @@ async function submitEstimate() {
     }
 
     await batchUpdateValues(spreadsheetId, updateData);
+    await mergeItemDescCells(spreadsheetId, sheetId, startRow, items.length);
 
     if (remarks) {
       await autoResizeRemarksRow(spreadsheetId, sheetId, remarksContentRow - 1);
@@ -587,7 +608,7 @@ async function submitInvoice() {
     ];
 
     await batchUpdateValues(spreadsheetId, updateData);
-
+    await mergeItemDescCells(spreadsheetId, sheetId, startRow, items.length);
     await autoResizeRemarksRow(spreadsheetId, sheetId, remarksRow - 1);
 
     // マスター管理シートに追記
@@ -716,7 +737,7 @@ async function submitInvoiceFromEstimate() {
     ];
 
     await batchUpdateValues(spreadsheetId, updateData);
-
+    await mergeItemDescCells(spreadsheetId, sheetId, startRow, items.length);
     await autoResizeRemarksRow(spreadsheetId, sheetId, remarksRow - 1);
 
     // マスター管理シートに追記
@@ -883,12 +904,12 @@ function applyAiResult(prefix, data) {
     if (data.deadline) document.getElementById('est-deadline').value = data.deadline;
     if (data.paymentTerms) document.getElementById('est-paymentTerms').value = data.paymentTerms;
     if (data.validPeriod) document.getElementById('est-validPeriod').value = data.validPeriod;
-    if (data.remarks) document.getElementById('est-remarks').value = data.remarks;
+    if (data.remarks) document.getElementById('est-remarks').value = stripQuotes(data.remarks);
   } else if (prefix === 'inv') {
     if (data.deliveryDate) document.getElementById('inv-deliveryDate').value = data.deliveryDate;
     if (data.paymentDeadline) document.getElementById('inv-paymentDeadline').value = data.paymentDeadline;
     if (data.estimateNo) document.getElementById('inv-estimateNo').value = data.estimateNo;
-    if (data.remarks) document.getElementById('inv-remarks').value = data.remarks;
+    if (data.remarks) document.getElementById('inv-remarks').value = stripQuotes(data.remarks);
   }
 
   if (Array.isArray(data.items)) {
@@ -1252,6 +1273,7 @@ async function submitGitHubEstimate() {
     ];
 
     await batchUpdateValues(spreadsheetId, updateData);
+    await mergeItemDescCells(spreadsheetId, sheetId, startRow, items.length);
 
     const today = formatDate(new Date());
     await appendRow(MASTER_SHEET.spreadsheetId, MASTER_SHEET.estimateSheet, [

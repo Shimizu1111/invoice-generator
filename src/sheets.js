@@ -162,6 +162,26 @@ async function appendRow(auth, spreadsheetId, sheetName, rowValues) {
 }
 
 /**
+ * 明細行の摘要セル(B-D)を結合する
+ */
+async function mergeItemDescCells(auth, spreadsheetId, sheetId, startRow, itemCount) {
+  const sheets = google.sheets({ version: 'v4', auth });
+  const requests = [];
+  for (let i = 0; i < itemCount; i++) {
+    requests.push({
+      mergeCells: {
+        range: { sheetId, startRowIndex: startRow - 1 + i, endRowIndex: startRow + i, startColumnIndex: 1, endColumnIndex: 4 },
+        mergeType: 'MERGE_ALL',
+      },
+    });
+  }
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: { requests },
+  });
+}
+
+/**
  * 備考セルのテキスト折り返しを有効にし、行高さを自動調整する
  */
 async function autoResizeRemarksRow(auth, spreadsheetId, sheetId, rowIndex) {
@@ -203,4 +223,5 @@ module.exports = {
   deleteRows,
   appendRow,
   autoResizeRemarksRow,
+  mergeItemDescCells,
 };

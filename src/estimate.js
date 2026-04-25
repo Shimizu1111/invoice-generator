@@ -1,5 +1,5 @@
 const { TEMPLATES, parseFolderId, ESTIMATE_CELLS } = require('./config');
-const { copyTemplate, getFirstSheetId, batchUpdate, clearRanges, insertRows, deleteRows, autoResizeRemarksRow } = require('./sheets');
+const { copyTemplate, getFirstSheetId, batchUpdate, clearRanges, insertRows, deleteRows, autoResizeRemarksRow, mergeItemDescCells } = require('./sheets');
 
 /**
  * 見積書を作成する
@@ -108,6 +108,7 @@ async function createEstimate(auth, params) {
   }
 
   await batchUpdate(auth, spreadsheetId, updateData);
+  await mergeItemDescCells(auth, spreadsheetId, sheetId, startRow, items.length);
 
   if (remarks) {
     await autoResizeRemarksRow(auth, spreadsheetId, sheetId, remarksContentRow - 1);
