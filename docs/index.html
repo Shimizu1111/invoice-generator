@@ -80,6 +80,28 @@
     .commits-preview .work-item { padding: 4px 0; border-bottom: 1px solid #eee; }
     .commits-preview .work-item:last-child { border-bottom: none; }
 
+    .master-link { display: inline-flex; align-items: center; gap: 4px; font-size: 0.85em; color: #1a73e8; text-decoration: none; }
+    .master-link:hover { text-decoration: underline; }
+
+    .no-selector { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .no-selector select { width: auto; min-width: 140px; }
+    .no-selector input { flex: 1; min-width: 120px; }
+    .no-last { font-size: 0.8em; color: #888; margin-top: 2px; }
+
+    .folder-picker-btn { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 0.85em; color: #555; white-space: nowrap; }
+    .folder-picker-btn:hover { background: #f8f8f8; }
+    .folder-input-row { display: flex; gap: 6px; }
+    .folder-input-row input { flex: 1; }
+
+    .folder-list { max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; }
+    .folder-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 0.9em; display: flex; align-items: center; gap: 6px; }
+    .folder-item:hover { background: #f0f7ff; }
+    .folder-breadcrumb { display: flex; gap: 4px; flex-wrap: wrap; font-size: 0.85em; margin-bottom: 8px; }
+    .folder-breadcrumb span { color: #1a73e8; cursor: pointer; }
+    .folder-breadcrumb span:hover { text-decoration: underline; }
+    .folder-breadcrumb span:last-child { color: #333; font-weight: bold; cursor: default; }
+    .folder-breadcrumb span:last-child:hover { text-decoration: none; }
+
     @media (max-width: 600px) {
       .item-row { grid-template-columns: 1fr; }
       .item-header { display: none; }
@@ -108,6 +130,7 @@
         <div class="user-info">ログイン中</div>
         <div class="top-bar-actions">
           <span id="companiesStatus" style="font-size: 0.8em; color: #666; align-self: center; margin-right: 4px;"></span>
+          <a class="master-link" href="https://docs.google.com/spreadsheets/d/1ufhqWGyI0to5fR5y50qHILaCl46ljuuabtFbQ6tWZz0/edit?gid=1421361307#gid=1421361307" target="_blank">管理シート</a>
           <button class="icon-btn" id="reloadCompaniesBtn" onclick="reloadCompanies()">🔄 会社リスト再読込</button>
           <button class="icon-btn" onclick="openSettings()">⚙ 設定</button>
           <button class="icon-btn" onclick="handleSignOut()">ログアウト</button>
@@ -146,7 +169,15 @@
         </div>
         <div class="form-group">
           <label>見積番号</label>
-          <input type="text" id="est-no" placeholder="自動生成（空欄可）">
+          <div class="no-selector">
+            <select id="est-noMode" onchange="onNoModeChange('est')">
+              <option value="next">次の連番</option>
+              <option value="same">前回と同じ</option>
+              <option value="custom">カスタム</option>
+            </select>
+            <input type="text" id="est-no" placeholder="自動生成" readonly>
+          </div>
+          <div class="no-last" id="est-lastNo">読み込み中...</div>
         </div>
         <div class="form-group">
           <label>見積日</label>
@@ -165,9 +196,11 @@
           <input type="text" id="est-validPeriod" value="御見積後1ヶ月">
         </div>
         <div class="form-group">
-          <label>保存先フォルダURL</label>
-          <input type="text" id="est-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
-          <div class="hint">Google DriveのフォルダURL</div>
+          <label>保存先フォルダ</label>
+          <div class="folder-input-row">
+            <input type="text" id="est-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+            <button type="button" class="folder-picker-btn" onclick="openFolderPicker('est')">選択</button>
+          </div>
         </div>
         <div class="form-group">
           <label>備考</label>
@@ -208,7 +241,15 @@
         </div>
         <div class="form-group">
           <label>請求番号</label>
-          <input type="text" id="inv-no" placeholder="自動生成（空欄可）">
+          <div class="no-selector">
+            <select id="inv-noMode" onchange="onNoModeChange('inv')">
+              <option value="next">次の連番</option>
+              <option value="same">前回と同じ</option>
+              <option value="custom">カスタム</option>
+            </select>
+            <input type="text" id="inv-no" placeholder="自動生成" readonly>
+          </div>
+          <div class="no-last" id="inv-lastNo">読み込み中...</div>
         </div>
         <div class="form-group">
           <label>請求日</label>
@@ -227,8 +268,11 @@
           <input type="text" id="inv-estimateNo" placeholder="EST202403001">
         </div>
         <div class="form-group">
-          <label>保存先フォルダURL</label>
-          <input type="text" id="inv-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+          <label>保存先フォルダ</label>
+          <div class="folder-input-row">
+            <input type="text" id="inv-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+            <button type="button" class="folder-picker-btn" onclick="openFolderPicker('inv')">選択</button>
+          </div>
         </div>
         <div class="form-group">
           <label>備考</label>
@@ -253,8 +297,11 @@
           <div class="hint">見積書のURLまたはスプレッドシートIDを入力</div>
         </div>
         <div class="form-group">
-          <label>保存先フォルダURL</label>
-          <input type="text" id="fe-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+          <label>保存先フォルダ</label>
+          <div class="folder-input-row">
+            <input type="text" id="fe-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+            <button type="button" class="folder-picker-btn" onclick="openFolderPicker('fe')">選択</button>
+          </div>
         </div>
         <div class="form-group">
           <label>納品日（任意）</label>
@@ -332,8 +379,11 @@
             <input type="text" id="gh-subject" placeholder="○月分開発作業">
           </div>
           <div class="form-group">
-            <label>保存先フォルダURL</label>
-            <input type="text" id="gh-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+            <label>保存先フォルダ</label>
+            <div class="folder-input-row">
+              <input type="text" id="gh-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+              <button type="button" class="folder-picker-btn" onclick="openFolderPicker('gh')">選択</button>
+            </div>
           </div>
           <button class="btn btn-primary" id="gh-submit" onclick="submitGitHubEstimate()">この内容で見積書を作成</button>
           <div class="loading" id="gh-loading">作成中...</div>
@@ -371,6 +421,21 @@
       </div>
     </div>
   </div>
+
+    <!-- Folder Picker Modal -->
+    <div class="modal-overlay" id="folderPickerModal">
+      <div class="modal">
+        <button class="modal-close" onclick="closeFolderPicker()">×</button>
+        <h2>保存先フォルダを選択</h2>
+        <div class="folder-breadcrumb" id="fp-breadcrumb"></div>
+        <div id="fp-loading" class="loading">読み込み中...</div>
+        <div class="folder-list" id="fp-list"></div>
+        <div style="margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end;">
+          <button class="btn-secondary" onclick="closeFolderPicker()">キャンセル</button>
+          <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.9em;" onclick="confirmFolderSelection()">このフォルダを選択</button>
+        </div>
+      </div>
+    </div>
 
   <script src="app.js"></script>
   <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>

@@ -34,6 +34,8 @@ const INVOICE_CELLS = {
   itemColumns: { number: 'A', description: 'B', quantity: 'E', unit: 'F', unitPrice: 'G', amount: 'H' },
 };
 
+const ROOT_FOLDER_ID = '1nX6rrInrQ2mBQK_Y-J6AO5FkWfc2-fh-';
+
 const CLIENT_ID = '707875244824-kuhb9drhcanafjnqrs7fk9n7l3kjkssc.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive';
 
@@ -45,6 +47,10 @@ let gapiInited = false;
 let gisInited = false;
 let cachedClients = [];
 let cachedSelfInfo = null;
+let lastEstimateNo = '';
+let lastInvoiceNo = '';
+let folderPickerTarget = '';
+let folderPickerStack = [];
 
 // ============================================================
 // Google API init
@@ -106,6 +112,7 @@ function showLoggedIn() {
   if (document.getElementById('est-items').children.length === 0) addItem('est');
   if (document.getElementById('inv-items').children.length === 0) addItem('inv');
   loadCompanies();
+  loadLastNumbers();
 }
 
 function handleSignOut() {
@@ -1029,6 +1036,146 @@ function renderCommitsPreview(workItems, totalCommits) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ============================================================
+// Last Number Management
+// ============================================================
+async function loadLastNumbers() {
+  try {
+    const [estValues, invValues] = await Promise.all([
+      readRange(MASTER_SHEET.spreadsheetId, `${MASTER_SHEET.estimateSheet}!C:C`),
+      readRange(MASTER_SHEET.spreadsheetId, `${MASTER_SHEET.invoiceSheet}!C:C`),
+    ]);
+    lastEstimateNo = findLastNo(estValues, 'EST');
+    lastInvoiceNo = findLastNo(invValues, 'BILL');
+    updateNoDisplay('est', lastEstimateNo);
+    updateNoDisplay('inv', lastInvoiceNo);
+  } catch (err) {
+    console.warn('番号読み込み失敗:', err);
+    document.getElementById('est-lastNo').textContent = '番号の読み込みに失敗';
+    document.getElementById('inv-lastNo').textContent = '番号の読み込みに失敗';
+  }
+}
+
+function findLastNo(values, prefix) {
+  if (!values) return '';
+  for (let i = values.length - 1; i >= 0; i--) {
+    const v = (values[i][0] || '').toString().trim();
+    if (v && v.startsWith(prefix)) return v;
+  }
+  return '';
+}
+
+function incrementNo(no) {
+  const match = no.match(/^([A-Z]+\d{6})(\d+)$/);
+  if (!match) return no;
+  const nextNum = parseInt(match[2], 10) + 1;
+  return match[1] + String(nextNum).padStart(match[2].length, '0');
+}
+
+function updateNoDisplay(prefix, lastNo) {
+  const lastEl = document.getElementById(prefix + '-lastNo');
+  const noInput = document.getElementById(prefix + '-no');
+  if (lastNo) {
+    lastEl.textContent = '直前の番号: ' + lastNo;
+    noInput.value = incrementNo(lastNo);
+  } else {
+    lastEl.textContent = '過去の番号なし';
+    noInput.value = prefix === 'est' ? generateEstimateNo() : generateInvoiceNo();
+  }
+}
+
+function onNoModeChange(prefix) {
+  const mode = document.getElementById(prefix + '-noMode').value;
+  const noInput = document.getElementById(prefix + '-no');
+  const lastNo = prefix === 'est' ? lastEstimateNo : lastInvoiceNo;
+  if (mode === 'next') {
+    noInput.readOnly = true;
+    noInput.value = lastNo ? incrementNo(lastNo) : (prefix === 'est' ? generateEstimateNo() : generateInvoiceNo());
+  } else if (mode === 'same') {
+    noInput.readOnly = true;
+    noInput.value = lastNo || (prefix === 'est' ? generateEstimateNo() : generateInvoiceNo());
+  } else {
+    noInput.readOnly = false;
+    noInput.value = '';
+    noInput.placeholder = '番号を入力';
+    noInput.focus();
+  }
+}
+
+// ============================================================
+// Folder Picker
+// ============================================================
+function openFolderPicker(targetPrefix) {
+  folderPickerTarget = targetPrefix;
+  folderPickerStack = [{ id: ROOT_FOLDER_ID, name: 'Root' }];
+  document.getElementById('folderPickerModal').classList.add('show');
+  loadFolderContents(ROOT_FOLDER_ID);
+}
+
+function closeFolderPicker() {
+  document.getElementById('folderPickerModal').classList.remove('show');
+}
+
+async function loadFolderContents(folderId) {
+  const listEl = document.getElementById('fp-list');
+  const loadingEl = document.getElementById('fp-loading');
+  listEl.innerHTML = '';
+  loadingEl.className = 'loading show';
+  try {
+    const res = await gapi.client.drive.files.list({
+      q: `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      fields: 'files(id, name)',
+      orderBy: 'name',
+      pageSize: 100,
+    });
+    loadingEl.className = 'loading';
+    const folders = res.result.files || [];
+    renderBreadcrumb();
+    if (folders.length === 0) {
+      listEl.innerHTML = '<div style="padding: 12px; color: #888; font-size: 0.9em;">サブフォルダなし</div>';
+      return;
+    }
+    folders.forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'folder-item';
+      div.innerHTML = `<span style="font-size:1.1em;">📁</span> ${escapeHtml(f.name)}`;
+      div.onclick = () => navigateToFolder(f.id, f.name);
+      listEl.appendChild(div);
+    });
+  } catch (err) {
+    loadingEl.className = 'loading';
+    listEl.innerHTML = `<div style="padding: 12px; color: #c00; font-size: 0.9em;">エラー: ${escapeHtml(err.result?.error?.message || err.message || String(err))}</div>`;
+  }
+}
+
+function navigateToFolder(folderId, folderName) {
+  folderPickerStack.push({ id: folderId, name: folderName });
+  loadFolderContents(folderId);
+}
+
+function navigateToBreadcrumb(index) {
+  if (index >= folderPickerStack.length - 1) return;
+  folderPickerStack = folderPickerStack.slice(0, index + 1);
+  loadFolderContents(folderPickerStack[index].id);
+}
+
+function renderBreadcrumb() {
+  const el = document.getElementById('fp-breadcrumb');
+  el.innerHTML = folderPickerStack.map((item, i) => {
+    if (i < folderPickerStack.length - 1) {
+      return `<span onclick="navigateToBreadcrumb(${i})">${escapeHtml(item.name)}</span><span style="color:#999;cursor:default;"> / </span>`;
+    }
+    return `<span>${escapeHtml(item.name)}</span>`;
+  }).join('');
+}
+
+function confirmFolderSelection() {
+  const current = folderPickerStack[folderPickerStack.length - 1];
+  const url = `https://drive.google.com/drive/folders/${current.id}`;
+  document.getElementById(folderPickerTarget + '-folderUrl').value = url;
+  closeFolderPicker();
 }
 
 async function submitGitHubEstimate() {
