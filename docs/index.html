@@ -411,8 +411,18 @@
           <input type="file" id="ct-file" accept="application/pdf">
         </div>
         <div class="form-group">
+          <label>会社名</label>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+            <select class="client-select" onchange="onClientSelect('ct', this)" style="flex:1;">
+              <option value="">（手動入力）</option>
+            </select>
+            <a href="https://docs.google.com/spreadsheets/d/1jcWUiz2JxHi_fzn-1h75LOGx50DAiF5uWJPvIWEVlus/edit" target="_blank" class="icon-btn" style="text-decoration:none;white-space:nowrap;">編集</a>
+          </div>
+          <input type="text" id="ct-clientName" placeholder="株式会社〇〇">
+        </div>
+        <div class="form-group">
           <label>タイトル</label>
-          <input type="text" id="ct-title" placeholder="例: 業務委託基本契約書_株式会社〇〇">
+          <input type="text" id="ct-title" placeholder="例: 業務委託基本契約書">
         </div>
         <div class="form-group">
           <label>締結日</label>

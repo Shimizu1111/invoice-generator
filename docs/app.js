@@ -1317,6 +1317,7 @@ async function submitGitHubEstimate() {
 // ============================================================
 async function submitContract() {
   const fileInput = document.getElementById('ct-file');
+  const clientName = document.getElementById('ct-clientName').value.trim();
   const title = document.getElementById('ct-title').value.trim();
   const signDate = document.getElementById('ct-signDate').value;
   const folderUrl = document.getElementById('ct-folderUrl').value.trim();
@@ -1355,11 +1356,11 @@ async function submitContract() {
     const uploaded = await uploadRes.json();
     const fileLink = uploaded.webViewLink || `https://drive.google.com/file/d/${uploaded.id}/view`;
 
-    // Append to master sheet: 作成日, 締結日, タイトル, リンク
+    // Append to master sheet: 作成日, 締結日, 会社名, タイトル, リンク
     const today = formatDate(new Date());
     const signDateFormatted = signDate ? dateInputToFormatted(signDate) : '';
     await appendRow(MASTER_SHEET.spreadsheetId, MASTER_SHEET.contractSheet, [
-      today, signDateFormatted, title, fileLink,
+      today, signDateFormatted, clientName, title, fileLink,
     ]);
 
     showResult('ct-result', `登録しました: <a href="${fileLink}" target="_blank">${escapeHtml(file.name)}</a>`);
