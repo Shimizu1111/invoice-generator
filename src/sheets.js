@@ -105,7 +105,7 @@ async function insertRows(auth, spreadsheetId, sheetId, startIndex, count) {
               startIndex,
               endIndex: startIndex + count,
             },
-            inheritFromBefore: true,
+            inheritFromBefore: false,
           },
         },
       ],
@@ -161,6 +161,32 @@ async function appendRow(auth, spreadsheetId, sheetName, rowValues) {
   });
 }
 
+/**
+ * 備考セルのテキスト折り返しを有効にし、行高さを自動調整する
+ */
+async function autoResizeRemarksRow(auth, spreadsheetId, sheetId, rowIndex) {
+  const sheets = google.sheets({ version: 'v4', auth });
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: rowIndex, endRowIndex: rowIndex + 1, startColumnIndex: 0, endColumnIndex: 1 },
+            cell: { userEnteredFormat: { wrapStrategy: 'WRAP' } },
+            fields: 'userEnteredFormat.wrapStrategy',
+          },
+        },
+        {
+          autoResizeDimensions: {
+            dimensions: { sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 },
+          },
+        },
+      ],
+    },
+  });
+}
+
 module.exports = {
   copyTemplate,
   getFirstSheetId,
@@ -170,4 +196,5 @@ module.exports = {
   insertRows,
   deleteRows,
   appendRow,
+  autoResizeRemarksRow,
 };

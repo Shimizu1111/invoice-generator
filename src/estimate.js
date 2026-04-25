@@ -1,5 +1,5 @@
 const { TEMPLATES, parseFolderId, ESTIMATE_CELLS } = require('./config');
-const { copyTemplate, getFirstSheetId, batchUpdate, clearRanges, insertRows, deleteRows } = require('./sheets');
+const { copyTemplate, getFirstSheetId, batchUpdate, clearRanges, insertRows, deleteRows, autoResizeRemarksRow } = require('./sheets');
 
 /**
  * 見積書を作成する
@@ -108,6 +108,10 @@ async function createEstimate(auth, params) {
   }
 
   await batchUpdate(auth, spreadsheetId, updateData);
+
+  if (remarks) {
+    await autoResizeRemarksRow(auth, spreadsheetId, sheetId, remarksContentRow - 1);
+  }
 
   console.log(`見積書を作成しました: ${spreadsheetUrl}`);
   return { spreadsheetId, spreadsheetUrl, no };

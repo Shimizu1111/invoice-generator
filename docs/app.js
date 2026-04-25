@@ -357,7 +357,7 @@ async function insertRows(spreadsheetId, sheetId, startIndex, count) {
       requests: [{
         insertDimension: {
           range: { sheetId, dimension: 'ROWS', startIndex, endIndex: startIndex + count },
-          inheritFromBefore: true,
+          inheritFromBefore: false,
         },
       }],
     },
@@ -373,6 +373,28 @@ async function deleteRows(spreadsheetId, sheetId, startIndex, count) {
           range: { sheetId, dimension: 'ROWS', startIndex, endIndex: startIndex + count },
         },
       }],
+    },
+  });
+}
+
+async function autoResizeRemarksRow(spreadsheetId, sheetId, rowIndex) {
+  await gapi.client.sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    resource: {
+      requests: [
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: rowIndex, endRowIndex: rowIndex + 1, startColumnIndex: 0, endColumnIndex: 1 },
+            cell: { userEnteredFormat: { wrapStrategy: 'WRAP' } },
+            fields: 'userEnteredFormat.wrapStrategy',
+          },
+        },
+        {
+          autoResizeDimensions: {
+            dimensions: { sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 },
+          },
+        },
+      ],
     },
   });
 }
@@ -459,6 +481,10 @@ async function submitEstimate() {
     }
 
     await batchUpdateValues(spreadsheetId, updateData);
+
+    if (remarks) {
+      await autoResizeRemarksRow(spreadsheetId, sheetId, remarksContentRow - 1);
+    }
 
     // マスター管理シートに追記
     const today = formatDate(new Date());
@@ -548,6 +574,8 @@ async function submitInvoice() {
     ];
 
     await batchUpdateValues(spreadsheetId, updateData);
+
+    await autoResizeRemarksRow(spreadsheetId, sheetId, remarksRow - 1);
 
     // マスター管理シートに追記
     const today = formatDate(new Date());
@@ -675,6 +703,8 @@ async function submitInvoiceFromEstimate() {
     ];
 
     await batchUpdateValues(spreadsheetId, updateData);
+
+    await autoResizeRemarksRow(spreadsheetId, sheetId, remarksRow - 1);
 
     // マスター管理シートに追記
     const today = formatDate(new Date());

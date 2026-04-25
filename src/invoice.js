@@ -1,5 +1,5 @@
 const { TEMPLATES, parseFolderId, INVOICE_CELLS } = require('./config');
-const { copyTemplate, getFirstSheetId, batchUpdate, clearRanges, readRange, insertRows, deleteRows } = require('./sheets');
+const { copyTemplate, getFirstSheetId, batchUpdate, clearRanges, readRange, insertRows, deleteRows, autoResizeRemarksRow } = require('./sheets');
 const { formatDate } = require('./estimate');
 
 /**
@@ -101,6 +101,8 @@ async function createInvoice(auth, params) {
   ];
 
   await batchUpdate(auth, spreadsheetId, updateData);
+
+  await autoResizeRemarksRow(auth, spreadsheetId, sheetId, remarksRow - 1);
 
   console.log(`請求書を作成しました: ${spreadsheetUrl}`);
   return { spreadsheetId, spreadsheetUrl, no };
