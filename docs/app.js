@@ -390,6 +390,12 @@ async function autoResizeRemarksRow(spreadsheetId, sheetId, rowIndex) {
     resource: {
       requests: [
         {
+          mergeCells: {
+            range: { sheetId, startRowIndex: rowIndex, endRowIndex: rowIndex + 1, startColumnIndex: 0, endColumnIndex: 8 },
+            mergeType: 'MERGE_ALL',
+          },
+        },
+        {
           repeatCell: {
             range: { sheetId, startRowIndex: rowIndex, endRowIndex: rowIndex + 1, startColumnIndex: 0, endColumnIndex: 1 },
             cell: { userEnteredFormat: { wrapStrategy: 'WRAP' } },
