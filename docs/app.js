@@ -1334,11 +1334,8 @@ async function submitContract() {
 
   try {
     // Upload PDF to Google Drive
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-    const fileName = `${dateStr}_${clientName}_${title}.pdf`;
     const metadata = {
-      name: fileName,
+      name: file.name,
       mimeType: 'application/pdf',
       parents: [folderId],
     };
