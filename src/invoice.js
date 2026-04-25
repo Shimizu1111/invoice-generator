@@ -48,7 +48,7 @@ async function createInvoice(auth, params) {
   // 行数の調整
   const sheetId = await getFirstSheetId(auth, spreadsheetId);
   if (items.length > templateCount) {
-    await insertRows(auth, spreadsheetId, sheetId, startRow - 1, items.length - templateCount);
+    await insertRows(auth, spreadsheetId, sheetId, startRow, items.length - templateCount);
   } else if (items.length < templateCount) {
     await deleteRows(auth, spreadsheetId, sheetId, startRow - 1, templateCount - items.length);
   }

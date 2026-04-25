@@ -105,7 +105,7 @@ async function insertRows(auth, spreadsheetId, sheetId, startIndex, count) {
               startIndex,
               endIndex: startIndex + count,
             },
-            inheritFromBefore: false,
+            inheritFromBefore: true,
           },
         },
       ],

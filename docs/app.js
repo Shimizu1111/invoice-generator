@@ -364,7 +364,7 @@ async function insertRows(spreadsheetId, sheetId, startIndex, count) {
       requests: [{
         insertDimension: {
           range: { sheetId, dimension: 'ROWS', startIndex, endIndex: startIndex + count },
-          inheritFromBefore: false,
+          inheritFromBefore: true,
         },
       }],
     },
@@ -456,7 +456,7 @@ async function submitEstimate() {
 
     const sheetId = await getFirstSheetId(spreadsheetId);
     if (items.length > templateCount) {
-      await insertRows(spreadsheetId, sheetId, startRow - 1, items.length - templateCount);
+      await insertRows(spreadsheetId, sheetId, startRow, items.length - templateCount);
     } else if (items.length < templateCount) {
       await deleteRows(spreadsheetId, sheetId, startRow - 1, templateCount - items.length);
     }
@@ -550,7 +550,7 @@ async function submitInvoice() {
 
     const sheetId = await getFirstSheetId(spreadsheetId);
     if (items.length > templateCount) {
-      await insertRows(spreadsheetId, sheetId, startRow - 1, items.length - templateCount);
+      await insertRows(spreadsheetId, sheetId, startRow, items.length - templateCount);
     } else if (items.length < templateCount) {
       await deleteRows(spreadsheetId, sheetId, startRow - 1, templateCount - items.length);
     }
@@ -680,7 +680,7 @@ async function submitInvoiceFromEstimate() {
 
     const sheetId = await getFirstSheetId(spreadsheetId);
     if (items.length > templateCount) {
-      await insertRows(spreadsheetId, sheetId, startRow - 1, items.length - templateCount);
+      await insertRows(spreadsheetId, sheetId, startRow, items.length - templateCount);
     } else if (items.length < templateCount) {
       await deleteRows(spreadsheetId, sheetId, startRow - 1, templateCount - items.length);
     }
@@ -1218,7 +1218,7 @@ async function submitGitHubEstimate() {
 
     const sheetId = await getFirstSheetId(spreadsheetId);
     if (items.length > templateCount) {
-      await insertRows(spreadsheetId, sheetId, startRow - 1, items.length - templateCount);
+      await insertRows(spreadsheetId, sheetId, startRow, items.length - templateCount);
     } else if (items.length < templateCount) {
       await deleteRows(spreadsheetId, sheetId, startRow - 1, templateCount - items.length);
     }
