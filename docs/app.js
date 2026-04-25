@@ -10,6 +10,7 @@ const MASTER_SHEET = {
   spreadsheetId: '1ufhqWGyI0to5fR5y50qHILaCl46ljuuabtFbQ6tWZz0',
   estimateSheet: '見積書',
   invoiceSheet: '請求書',
+  contractSheet: '契約書',
 };
 
 const COMPANIES_SHEET = {
@@ -131,7 +132,7 @@ function handleSignOut() {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  const tabs = { estimate: 0, invoice: 1, fromEstimate: 2, github: 3 };
+  const tabs = { estimate: 0, invoice: 1, fromEstimate: 2, github: 3, contract: 4 };
   document.querySelectorAll('.tab')[tabs[name]].classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
 }
@@ -1198,6 +1199,27 @@ function renderBreadcrumb() {
   }).join('');
 }
 
+async function createNewFolder() {
+  const nameInput = document.getElementById('fp-newFolderName');
+  const name = nameInput.value.trim();
+  if (!name) { alert('フォルダ名を入力してください'); return; }
+  const parentId = folderPickerStack[folderPickerStack.length - 1].id;
+  try {
+    const res = await gapi.client.drive.files.create({
+      resource: {
+        name,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [parentId],
+      },
+      fields: 'id, name',
+    });
+    nameInput.value = '';
+    navigateToFolder(res.result.id, res.result.name);
+  } catch (err) {
+    alert('フォルダ作成に失敗: ' + (err.result?.error?.message || err.message));
+  }
+}
+
 function confirmFolderSelection() {
   const current = folderPickerStack[folderPickerStack.length - 1];
   const url = `https://drive.google.com/drive/folders/${current.id}`;
@@ -1287,5 +1309,66 @@ async function submitGitHubEstimate() {
   } finally {
     document.getElementById('gh-submit').disabled = false;
     setLoading('gh-loading', false);
+  }
+}
+
+// ============================================================
+// Contract Management
+// ============================================================
+async function submitContract() {
+  const fileInput = document.getElementById('ct-file');
+  const title = document.getElementById('ct-title').value.trim();
+  const signDate = document.getElementById('ct-signDate').value;
+  const folderUrl = document.getElementById('ct-folderUrl').value.trim();
+
+  if (!fileInput.files.length) { alert('PDFファイルを選択してください'); return; }
+  if (!title) { alert('タイトルは必須です'); return; }
+  if (!folderUrl) { alert('保存先フォルダを選択してください'); return; }
+
+  const file = fileInput.files[0];
+  const folderId = parseFolderId(folderUrl);
+
+  document.getElementById('ct-submit').disabled = true;
+  setLoading('ct-loading', true);
+
+  try {
+    // Upload PDF to Google Drive
+    const metadata = {
+      name: file.name,
+      mimeType: 'application/pdf',
+      parents: [folderId],
+    };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', file);
+
+    const token = gapi.client.getToken().access_token;
+    const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: form,
+    });
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text();
+      throw new Error(`アップロード失敗: ${uploadRes.status} ${errText}`);
+    }
+    const uploaded = await uploadRes.json();
+    const fileLink = uploaded.webViewLink || `https://drive.google.com/file/d/${uploaded.id}/view`;
+
+    // Append to master sheet: 作成日, 締結日, タイトル, リンク
+    const today = formatDate(new Date());
+    const signDateFormatted = signDate ? dateInputToFormatted(signDate) : '';
+    await appendRow(MASTER_SHEET.spreadsheetId, MASTER_SHEET.contractSheet, [
+      today, signDateFormatted, title, fileLink,
+    ]);
+
+    showResult('ct-result', `登録しました: <a href="${fileLink}" target="_blank">${escapeHtml(file.name)}</a>`);
+    fileInput.value = '';
+  } catch (err) {
+    console.error(err);
+    showResult('ct-result', `エラー: ${err.result?.error?.message || err.message || err}`, true);
+  } finally {
+    document.getElementById('ct-submit').disabled = false;
+    setLoading('ct-loading', false);
   }
 }

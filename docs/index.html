@@ -143,6 +143,7 @@
         <button class="tab" onclick="switchTab('invoice')">請求書</button>
         <button class="tab" onclick="switchTab('fromEstimate')">見積書→請求書</button>
         <button class="tab" onclick="switchTab('github')">GitHubから生成</button>
+        <button class="tab" onclick="switchTab('contract')">契約書管理</button>
       </div>
 
       <!-- Estimate Tab -->
@@ -399,6 +400,35 @@
           <div class="result" id="gh-result"></div>
         </div>
       </div>
+      <!-- Contract Tab -->
+      <div class="tab-content" id="tab-contract">
+        <p style="font-size: 0.9em; color: #666; margin-bottom: 16px;">
+          契約書PDFをアップロードし、管理シートに登録します。
+          <a class="master-link" href="https://docs.google.com/spreadsheets/d/1ufhqWGyI0to5fR5y50qHILaCl46ljuuabtFbQ6tWZz0/edit?gid=1006922400#gid=1006922400" target="_blank">管理シートを開く</a>
+        </p>
+        <div class="form-group">
+          <label>契約書PDF</label>
+          <input type="file" id="ct-file" accept="application/pdf">
+        </div>
+        <div class="form-group">
+          <label>タイトル</label>
+          <input type="text" id="ct-title" placeholder="例: 業務委託基本契約書_株式会社〇〇">
+        </div>
+        <div class="form-group">
+          <label>締結日</label>
+          <input type="date" id="ct-signDate">
+        </div>
+        <div class="form-group">
+          <label>保存先フォルダ</label>
+          <div class="folder-input-row">
+            <input type="text" id="ct-folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+            <button type="button" class="folder-picker-btn" onclick="openFolderPicker('ct')">選択</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="ct-submit" onclick="submitContract()">アップロード・登録</button>
+        <div class="loading" id="ct-loading">アップロード中...</div>
+        <div class="result" id="ct-result"></div>
+      </div>
     </div>
 
     <!-- Settings Modal -->
@@ -439,9 +469,13 @@
         <div class="folder-breadcrumb" id="fp-breadcrumb"></div>
         <div id="fp-loading" class="loading">読み込み中...</div>
         <div class="folder-list" id="fp-list"></div>
-        <div style="margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end;">
+        <div style="margin-top: 12px; display: flex; gap: 8px; align-items: center;">
+          <div style="display:flex;gap:4px;flex:1;">
+            <input type="text" id="fp-newFolderName" placeholder="新しいフォルダ名" style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:0.9em;">
+            <button class="btn-secondary" onclick="createNewFolder()">作成</button>
+          </div>
           <button class="btn-secondary" onclick="closeFolderPicker()">キャンセル</button>
-          <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.9em;" onclick="confirmFolderSelection()">このフォルダを選択</button>
+          <button class="btn btn-primary" style="padding: 8px 16px; font-size: 0.9em;" onclick="confirmFolderSelection()">選択</button>
         </div>
       </div>
     </div>
